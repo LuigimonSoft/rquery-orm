@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 use rquery_orm::{Entity, Persistable, PlaceholderStyle};
 
 #[derive(Entity, Debug, Clone)]
@@ -32,7 +32,10 @@ fn insert_sql_builds() {
         first_name: "John".to_string(),
         last_name: "Doe".to_string(),
         age: 30,
-        hire_date: NaiveDateTime::from_timestamp_opt(0, 0).unwrap(),
+        hire_date: NaiveDate::from_ymd_opt(1970, 1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap(),
     };
     let (sql, params, has_id) = emp.build_insert(PlaceholderStyle::Dollar);
     assert_eq!(
