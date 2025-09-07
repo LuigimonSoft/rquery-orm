@@ -1,4 +1,6 @@
-use rquery_orm::{col, connect_postgres, val, Entity, GenericRepository, JoinType, QueryExecutor};
+use rquery_orm::{
+    col, connect_postgres, val, DatabaseRef, Entity, GenericRepository, JoinType, QueryExecutor,
+};
 
 #[derive(Entity, Debug)]
 #[table(name = "Employees")]
@@ -22,6 +24,9 @@ async fn repo() -> anyhow::Result<GenericRepository<Employee>> {
         "YourStrong!Passw0rd",
     )
     .await?;
+    if let DatabaseRef::Postgres(client) = &db {
+        client.batch_execute(include_str!("pg_setup.sql")).await?;
+    }
     Ok(GenericRepository::<Employee>::new(db))
 }
 
