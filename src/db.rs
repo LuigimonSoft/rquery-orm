@@ -1,4 +1,6 @@
 use anyhow::Result;
+use native_tls::TlsConnector;
+use postgres_native_tls::MakeTlsConnector;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -35,6 +37,7 @@ pub async fn connect_mssql(
     config.port(port);
     config.database(db);
     config.authentication(tiberius::AuthMethod::sql_server(user, pass));
+    config.trust_cert();
 
     let tcp = TcpStream::connect((host, port)).await?;
     tcp.set_nodelay(true)?;
@@ -50,10 +53,15 @@ pub async fn connect_postgres(
     pass: &str,
 ) -> Result<DatabaseRef> {
     let config = format!(
-        "host={} port={} dbname={} user={} password={}",
+        "host={} port={} dbname={} user={} password={} sslmode=require",
         host, port, db, user, pass
     );
-    let (client, connection) = tokio_postgres::connect(&config, tokio_postgres::NoTls).await?;
+    let builder = TlsConnector::builder()
+        .danger_accept_invalid_certs(true)
+        .danger_accept_invalid_hostnames(true)
+        .build()?;
+    let connector = MakeTlsConnector::new(builder);
+    let (client, connection) = tokio_postgres::connect(&config, connector).await?;
     tokio::spawn(async move {
         if let Err(e) = connection.await {
             eprintln!("postgres connection error: {}", e);
