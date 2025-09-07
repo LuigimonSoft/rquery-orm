@@ -168,7 +168,7 @@ impl Expr {
                 left: Box::new(self),
                 right: p,
             },
-            _ => panic!("like expects param"),
+            other => panic!("like expects Expr::Param but received {:?}", other),
         }
     }
     pub fn in_list(self, list: Vec<Expr>) -> Expr {
@@ -176,7 +176,7 @@ impl Expr {
         for e in list {
             match e {
                 Expr::Param(p) => ps.push(p),
-                _ => panic!("in_list expects params"),
+                other => panic!("in_list expects Expr::Param items but received {:?}", other),
             }
         }
         Expr::InList {
