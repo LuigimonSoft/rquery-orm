@@ -45,7 +45,7 @@ jobs:
           done
       - name: Setup MSSQL schema
         run: |
-          docker exec mssql /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -d tempdb -i tests/mssql_setup.sql
+          docker exec mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -d tempdb -i tests/mssql_setup.sql
       - name: Setup PostgreSQL schema
         run: |
           PGPASSWORD=YourStrong!Passw0rd psql -h localhost -U postgres -d tempdb -f tests/pg_setup.sql
