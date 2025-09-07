@@ -4,6 +4,7 @@ use postgres_native_tls::MakeTlsConnector;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
+use tokio_postgres::NoTls;
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
 pub enum DbKind {
@@ -52,20 +53,37 @@ pub async fn connect_postgres(
     user: &str,
     pass: &str,
 ) -> Result<DatabaseRef> {
-    let config = format!(
-        "host={} port={} dbname={} user={} password={} sslmode=require",
+    let base = format!(
+        "host={} port={} dbname={} user={} password={}",
         host, port, db, user, pass
     );
+
     let builder = TlsConnector::builder()
         .danger_accept_invalid_certs(true)
         .danger_accept_invalid_hostnames(true)
         .build()?;
     let connector = MakeTlsConnector::new(builder);
-    let (client, connection) = tokio_postgres::connect(&config, connector).await?;
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("postgres connection error: {}", e);
+    let tls_config = format!("{} sslmode=require", base);
+
+    match tokio_postgres::connect(&tls_config, connector).await {
+        Ok((client, connection)) => {
+            tokio::spawn(async move {
+                if let Err(e) = connection.await {
+                    eprintln!("postgres connection error: {}", e);
+                }
+            });
+            Ok(DatabaseRef::Postgres(Arc::new(client)))
         }
-    });
-    Ok(DatabaseRef::Postgres(Arc::new(client)))
+        Err(e) if e.to_string().contains("server does not support TLS") => {
+            let plain_config = format!("{} sslmode=disable", base);
+            let (client, connection) = tokio_postgres::connect(&plain_config, NoTls).await?;
+            tokio::spawn(async move {
+                if let Err(e) = connection.await {
+                    eprintln!("postgres connection error: {}", e);
+                }
+            });
+            Ok(DatabaseRef::Postgres(Arc::new(client)))
+        }
+        Err(e) => Err(e.into()),
+    }
 }
