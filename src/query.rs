@@ -252,16 +252,29 @@ macro_rules! val {
     };
 }
 
+// Helper macro for column equality to reduce duplication in on! and condition!
 #[macro_export]
-macro_rules! on {
-    ($lt:ident :: $lf:ident == $rt:ident :: $rf:ident) => {{
+macro_rules! __col_eq {
+    // Compare two columns
+    (($lt:ident :: $lf:ident), ($rt:ident :: $rf:ident)) => {
         $crate::query::Expr::Col(format!("{}.{}", $lt::TABLE, $lt::$lf))
             .eq($crate::query::Expr::Col(format!("{}.{}", $rt::TABLE, $rt::$rf)))
-    }};
-    ($lt:ident :: $lf:ident == $rv:expr) => {{
+    };
+    // Compare column to value
+    (($lt:ident :: $lf:ident), $rv:expr) => {
         $crate::query::Expr::Col(format!("{}.{}", $lt::TABLE, $lt::$lf))
             .eq($crate::query::Expr::Param($crate::query::ToParam::to_param($rv)))
-    }};
+    };
+}
+
+#[macro_export]
+macro_rules! on {
+    ($lt:ident :: $lf:ident == $rt:ident :: $rf:ident) => {
+        $crate::__col_eq!(($lt :: $lf), ($rt :: $rf))
+    };
+    ($lt:ident :: $lf:ident == $rv:expr) => {
+        $crate::__col_eq!(($lt :: $lf), $rv)
+    };
 }
 
 #[macro_export]
@@ -270,14 +283,12 @@ macro_rules! condition {
         $crate::query::Expr::Col($l.to_string())
             .eq($crate::query::Expr::Param($crate::query::ToParam::to_param($rv)))
     }};
-    ($lt:ident :: $lf:ident == $rt:ident :: $rf:ident) => {{
-        $crate::query::Expr::Col(format!("{}.{}", $lt::TABLE, $lt::$lf))
-            .eq($crate::query::Expr::Col(format!("{}.{}", $rt::TABLE, $rt::$rf)))
-    }};
-    ($lt:ident :: $lf:ident == $rv:expr) => {{
-        $crate::query::Expr::Col(format!("{}.{}", $lt::TABLE, $lt::$lf))
-            .eq($crate::query::Expr::Param($crate::query::ToParam::to_param($rv)))
-    }};
+    ($lt:ident :: $lf:ident == $rt:ident :: $rf:ident) => {
+        $crate::__col_eq!(($lt :: $lf), ($rt :: $rf))
+    };
+    ($lt:ident :: $lf:ident == $rv:expr) => {
+        $crate::__col_eq!(($lt :: $lf), $rv)
+    };
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
