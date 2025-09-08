@@ -41,7 +41,7 @@ pub struct Employees {
 ## Building queries
 All queries start from a `GenericRepository` tied to an entity. Chaining methods configures the SQL without executing it until an async terminal call:
 ```rust
-use rquery_orm::{col, on, condition, val, GenericRepository, JoinType, QueryExecutor};
+use rquery_orm::{col, on, condition, GenericRepository, JoinType, QueryExecutor};
 
 let repo = GenericRepository::<Employees>::new(db);
 let rows = repo
@@ -90,7 +90,7 @@ let rows = repo
 ```
 - Column = column (typed):
 ```rust
-use rquery_orm::{on, condition};
+use rquery_orm::{on, condition, JoinType};
 let rows = repo
     .Select()
     .Join(JoinType::Left, on!(Employees::country_id == Countries::country_id))

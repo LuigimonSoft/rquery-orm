@@ -1,6 +1,6 @@
 use rquery_orm::{
-    col, val, Entity, FromRowNamed, FromRowWithPrefix, JoinType, Persistable, PlaceholderStyle,
-    Query, SqlParam, TableMeta, Validatable,
+    col, condition, val, Entity, FromRowNamed, FromRowWithPrefix, JoinType, Persistable,
+    PlaceholderStyle, Query, SqlParam, TableMeta, Validatable,
 };
 
 struct Dummy;

@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use rquery_orm::{col, connect_postgres, on, condition, val, Entity, GenericRepository, JoinType, QueryExecutor};
+use rquery_orm::{col, connect_postgres, on, condition, Entity, GenericRepository, JoinType, QueryExecutor};
 
 mod employees_mod {
     use super::*;

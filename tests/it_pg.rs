@@ -1,5 +1,6 @@
 use rquery_orm::{
-    col, connect_postgres, val, DatabaseRef, Entity, GenericRepository, JoinType, QueryExecutor,
+    col, condition, connect_postgres, DatabaseRef, Entity, GenericRepository, JoinType,
+    QueryExecutor,
 };
 
 #[derive(Entity, Debug)]
@@ -42,7 +43,7 @@ async fn it_pg_select_chain() -> anyhow::Result<()> {
             "Countries C",
             col!("Employees.CountryId").eq(col!("C.CountryId")),
         )
-        .Where(condition!(Employees::country_id == "Mex"))
+        .Where(condition!(Employee::country_id == "Mex"))
         .OrderBy("Employees.HireDate DESC")
         .Top(1)
         .to_list_async()
