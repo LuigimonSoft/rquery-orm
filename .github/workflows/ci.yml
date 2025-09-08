@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          SA_PASSWORD: "YourStrong!Passw0rd"
+          ACCEPT_EULA: "Y"
+        ports:
+          - 1433:1433
+        options: >-
+          --name mssql
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: "YourStrong!Passw0rd"
+          POSTGRES_DB: tempdb
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Wait for MSSQL
+        run: |
+          for i in {1..30}; do
+            nc -z localhost 1433 && echo "MSSQL is up" && break
+            echo "Waiting for MSSQL..."
+            sleep 10
+          done
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            nc -z localhost 5432 && echo "PostgreSQL is up" && break
+            echo "Waiting for PostgreSQL..."
+            sleep 10
+          done
+      - name: Setup MSSQL schema
+        run: |
+          docker cp tests/mssql_setup.sql mssql:/tmp/mssql_setup.sql
+          docker exec mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -C -U sa -P "YourStrong!Passw0rd" -d tempdb -i /tmp/mssql_setup.sql
+      - name: Setup PostgreSQL schema
+        run: |
+          PGPASSWORD=YourStrong!Passw0rd psql -h localhost -U postgres -d tempdb -f tests/pg_setup.sql
+      - name: Run tests
+        run: cargo test
+      - name: Run ignored tests
+        run: cargo test -- --ignored
