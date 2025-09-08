@@ -5,22 +5,16 @@ use async_trait::async_trait;
 
 use crate::db::{DatabaseRef, DbKind};
 use crate::mapping::{Entity, FromRowNamed, Persistable, Validatable};
-use crate::query::{Expr, PlaceholderStyle, Query, SqlParam};
+use crate::query::{DualQuery, Expr, PlaceholderStyle, Query, SqlParam};
 use crate::repository::{Crud, QueryExecutor, Repository};
 use anyhow::{anyhow, Result};
 
-pub struct GenericRepository<T>
-where
-    T: Entity + FromRowNamed + Validatable + Persistable + Send + Sync,
-{
+pub struct GenericRepository<T> {
     db: Arc<DatabaseRef>,
     _t: PhantomData<T>,
 }
 
-impl<T> GenericRepository<T>
-where
-    T: Entity + FromRowNamed + Validatable + Persistable + Send + Sync,
-{
+impl<T> GenericRepository<T> {
     pub fn new(db: DatabaseRef) -> Self {
         Self {
             db: Arc::new(db),
@@ -29,10 +23,7 @@ where
     }
 }
 
-impl<T> Clone for GenericRepository<T>
-where
-    T: Entity + FromRowNamed + Validatable + Persistable + Send + Sync,
-{
+impl<T> Clone for GenericRepository<T> {
     fn clone(&self) -> Self {
         Self {
             db: self.db.clone(),
@@ -62,6 +53,20 @@ where
             .ok_or_else(|| anyhow!("no primary key metadata"))?;
         let expr = Expr::Col(format!("{}.{}", table.name, pk.column)).eq(Expr::Param(key));
         self.Select().Where(expr).to_single_async().await
+    }
+}
+
+impl<T, U> GenericRepository<(T, U)>
+where
+    T: Entity + crate::mapping::FromRowWithPrefix + Send + Sync,
+    U: Entity + crate::mapping::FromRowWithPrefix + Send + Sync,
+{
+    pub fn Select(&self) -> DualQuery<T, U> {
+        let style = match self.db.as_ref().kind() {
+            DbKind::Mssql => PlaceholderStyle::AtP,
+            DbKind::Postgres => PlaceholderStyle::Dollar,
+        };
+        DualQuery::<T, U>::new(style).with_db(self.db.clone())
     }
 }
 

@@ -37,6 +37,9 @@ pub fn entity(input: TokenStream) -> TokenStream {
     let mut relations = Vec::new();
     let mut from_ms_fields = Vec::new();
     let mut from_pg_fields = Vec::new();
+    let mut from_ms_fields_with_prefix = Vec::new();
+    let mut from_pg_fields_with_prefix = Vec::new();
+    let mut assoc_consts = Vec::new();
     let mut insert_stmts = Vec::new();
     let mut update_set_stmts = Vec::new();
     let mut update_where_stmts = Vec::new();
@@ -135,6 +138,7 @@ pub fn entity(input: TokenStream) -> TokenStream {
 
                 // column and key attributes
                 let mut col_name = ident.to_string();
+                let mut col_name_lit: Option<syn::LitStr> = None;
                 let mut is_key = false;
                 let mut is_identity = false;
                 let mut required = false;
@@ -238,6 +242,9 @@ pub fn entity(input: TokenStream) -> TokenStream {
                     }
                 }
 
+                // literal for column name token
+                let col_name_lit_inner = syn::LitStr::new(&col_name, proc_macro2::Span::call_site());
+
                 let max_length_token = match max_length { Some(v) => quote! { Some(#v) }, None => quote! { None } };
                 let min_length_token = match min_length { Some(v) => quote! { Some(#v) }, None => quote! { None } };
                 let regex_token = match regex.as_ref() { Some(s) => quote! { Some(#s) }, None => quote! { None } };
@@ -250,7 +257,7 @@ pub fn entity(input: TokenStream) -> TokenStream {
 
                 columns.push(quote! {
                     ::rquery_orm::mapping::ColumnMeta {
-                        name: #col_name,
+                        name: #col_name_lit_inner,
                         required: #required,
                         allow_null: #allow_null,
                         max_length: #max_length_token,
@@ -299,20 +306,29 @@ pub fn entity(input: TokenStream) -> TokenStream {
                     if is_identity { has_identity = true; }
                 }
 
+                // push associated const for this column
+                assoc_consts.push(quote! { pub const #ident: &'static str = #col_name_lit_inner; });
+
                 if is_option {
                     if is_string {
-                        from_ms_fields.push(quote! { #ident: row.try_get::<&str, _>(#col_name)?.map(|v| v.to_string()) });
+                        from_ms_fields.push(quote! { #ident: row.try_get::<&str, _>(#col_name_lit_inner)?.map(|v| v.to_string()) });
+                        from_ms_fields_with_prefix.push(quote! { #ident: { let k = format!("{}_{}", prefix, #col_name_lit_inner); row.try_get::<&str, _>(k.as_str())?.map(|v| v.to_string()) } });
                     } else {
-                        from_ms_fields.push(quote! { #ident: row.try_get::<#inner_ty, _>(#col_name)? });
+                        from_ms_fields.push(quote! { #ident: row.try_get::<#inner_ty, _>(#col_name_lit_inner)? });
+                        from_ms_fields_with_prefix.push(quote! { #ident: { let k = format!("{}_{}", prefix, #col_name_lit_inner); row.try_get::<#inner_ty, _>(k.as_str())? } });
                     }
-                    from_pg_fields.push(quote! { #ident: row.try_get(#col_name)? });
+                    from_pg_fields.push(quote! { #ident: row.try_get(#col_name_lit_inner)? });
+                    from_pg_fields_with_prefix.push(quote! { #ident: { let k = format!("{}_{}", prefix, #col_name_lit_inner); row.try_get(k.as_str())? } });
                 } else {
                     if is_string {
-                        from_ms_fields.push(quote! { #ident: row.try_get::<&str, _>(#col_name)?.unwrap().to_string() });
+                        from_ms_fields.push(quote! { #ident: row.try_get::<&str, _>(#col_name_lit_inner)?.unwrap().to_string() });
+                        from_ms_fields_with_prefix.push(quote! { #ident: { let k = format!("{}_{}", prefix, #col_name_lit_inner); row.try_get::<&str, _>(k.as_str())?.unwrap().to_string() } });
                     } else {
-                        from_ms_fields.push(quote! { #ident: row.try_get::<#inner_ty, _>(#col_name)?.unwrap() });
+                        from_ms_fields.push(quote! { #ident: row.try_get::<#inner_ty, _>(#col_name_lit_inner)?.unwrap() });
+                        from_ms_fields_with_prefix.push(quote! { #ident: { let k = format!("{}_{}", prefix, #col_name_lit_inner); row.try_get::<#inner_ty, _>(k.as_str())?.unwrap() } });
                     }
-                    from_pg_fields.push(quote! { #ident: row.try_get(#col_name)? });
+                    from_pg_fields.push(quote! { #ident: row.try_get(#col_name_lit_inner)? });
+                    from_pg_fields_with_prefix.push(quote! { #ident: { let k = format!("{}_{}", prefix, #col_name_lit_inner); row.try_get(k.as_str())? } });
                 }
 
                 if !is_identity && !ignore && !ignore_in_insert && !key_ignore_in_insert {
@@ -456,8 +472,12 @@ pub fn entity(input: TokenStream) -> TokenStream {
         }
     }
 
+    let table_name_lit = syn::LitStr::new(&table_name, proc_macro2::Span::call_site());
     let schema_tokens = match table_schema {
-        Some(s) => quote! { Some(#s) },
+        Some(s) => {
+            let s_lit = syn::LitStr::new(&s, proc_macro2::Span::call_site());
+            quote! { Some(#s_lit) }
+        }
         None => quote! { None },
     };
     let first_key_col_literal = first_key_col.clone();
@@ -467,7 +487,7 @@ pub fn entity(input: TokenStream) -> TokenStream {
         const KEYS: &[::rquery_orm::mapping::KeyMeta] = &[#(#keys),*];
         const RELATIONS: &[::rquery_orm::mapping::RelationMeta] = &[#(#relations),*];
         static TABLE_META: ::rquery_orm::mapping::TableMeta = ::rquery_orm::mapping::TableMeta {
-            name: #table_name,
+            name: #table_name_lit,
             schema: #schema_tokens,
             columns: COLUMNS,
             keys: KEYS,
@@ -486,6 +506,15 @@ pub fn entity(input: TokenStream) -> TokenStream {
             }
             fn from_row_pg(row: &tokio_postgres::Row) -> anyhow::Result<Self> {
                 Ok(Self { #(#from_pg_fields),* })
+            }
+        }
+
+        impl ::rquery_orm::mapping::FromRowWithPrefix for #struct_name {
+            fn from_row_ms_with(row: &tiberius::Row, prefix: &str) -> anyhow::Result<Self> {
+                Ok(Self { #(#from_ms_fields_with_prefix),* })
+            }
+            fn from_row_pg_with(row: &tokio_postgres::Row, prefix: &str) -> anyhow::Result<Self> {
+                Ok(Self { #(#from_pg_fields_with_prefix),* })
             }
         }
 
@@ -539,6 +568,11 @@ pub fn entity(input: TokenStream) -> TokenStream {
                 let sql = format!("DELETE FROM {} WHERE {} = {}", #table_name, #first_key_col_literal, placeholder);
                 (sql, vec![key])
             }
+        }
+
+        impl #struct_name {
+            pub const TABLE: &'static str = #table_name_lit;
+            #(#assoc_consts)*
         }
 
         #(#key_trait_impls)*

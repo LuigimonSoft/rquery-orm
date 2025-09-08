@@ -53,6 +53,13 @@ pub trait FromRowNamed: Sized {
     fn from_row_pg(row: &tokio_postgres::Row) -> anyhow::Result<Self>;
 }
 
+// Like FromRowNamed, but expects column names to be prefixed with
+// a short identifier, e.g., "t_ColumnName" or "u_ColumnName".
+pub trait FromRowWithPrefix: Sized {
+    fn from_row_ms_with(row: &tiberius::Row, prefix: &str) -> anyhow::Result<Self>;
+    fn from_row_pg_with(row: &tokio_postgres::Row, prefix: &str) -> anyhow::Result<Self>;
+}
+
 pub trait Validatable {
     fn validate(&self) -> Result<(), Vec<String>>;
 }

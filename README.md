@@ -41,15 +41,69 @@ pub struct Employees {
 ## Building queries
 All queries start from a `GenericRepository` tied to an entity. Chaining methods configures the SQL without executing it until an async terminal call:
 ```rust
-use rquery_orm::{col, val, GenericRepository, JoinType, QueryExecutor};
+use rquery_orm::{col, on, condition, GenericRepository, JoinType, QueryExecutor};
 
 let repo = GenericRepository::<Employees>::new(db);
 let rows = repo
     .Select()
-    .Join(JoinType::Left, "Countries C", col!("Employees.CountryId").eq(col!("C.CountryId")))
-    .Where(col!("Employees.CountryId").eq(val!("Mex")))
+    .Join(JoinType::Left, on!(Employees::country_id == Countries::country_id))
+    .Where(condition!(Employees::country_id == "Mex"))
     .OrderBy("Employees.HireDate DESC")
     .Top(10)
+    .to_list_async()
+    .await?;
+```
+
+## Join
+- Typed (recommended): uses compile-time entity and field names.
+```rust
+use rquery_orm::{on, JoinType};
+let rows = repo
+    .Select()
+    .Join(JoinType::Left, on!(Employees::country_id == Countries::country_id))
+    .to_list_async()
+    .await?;
+```
+- String-based (aliasing): handy for complex/manual joins or aliases.
+```rust
+use rquery_orm::{col, JoinType};
+let rows = repo
+    .Select()
+    .Join(
+        JoinType::Left,
+        "Countries C",
+        col!("Employees.CountryId").eq(col!("C.CountryId")),
+    )
+    .to_list_async()
+    .await?;
+```
+
+## Where
+- Column = value (typed):
+```rust
+use rquery_orm::condition;
+let rows = repo
+    .Select()
+    .Where(condition!(Employees::country_id == "Mex"))
+    .to_list_async()
+    .await?;
+```
+- Column = column (typed):
+```rust
+use rquery_orm::{on, condition, JoinType};
+let rows = repo
+    .Select()
+    .Join(JoinType::Left, on!(Employees::country_id == Countries::country_id))
+    .Where(condition!(Employees::country_id == Countries::country_id))
+    .to_list_async()
+    .await?;
+```
+- With aliases or ad-hoc paths (string literal):
+```rust
+use rquery_orm::condition;
+let rows = repo
+    .Select()
+    .Where(condition!("E.CountryId" == "Mex"))
     .to_list_async()
     .await?;
 ```
@@ -95,6 +149,17 @@ if let Err(errors) = user.validate() {
 ```
 
 When using repository methods like `insert_async` or `update_async`, validation runs automatically; failed validation aborts the operation.
+
+### Dual repository + typed join
+```rust
+use rquery_orm::{on, GenericRepository, JoinType};
+let pairs: Vec<(Employees, Countries)> = GenericRepository::<(Employees, Countries)>::new(db)
+    .Select()
+    .Join(JoinType::Left, on!(Employees::country_id == Countries::country_id))
+    .Top(10)
+    .to_list_async()
+    .await?;
+```
 
 ---
 See `examples/usage.rs` and the tests folder for additional scenarios.
