@@ -385,7 +385,7 @@ where
         (sql, params)
     }
 
-    pub async fn ToListAsync(self) -> Result<Vec<T>> {
+    pub async fn to_list_async(self) -> Result<Vec<T>> {
         let db = self.db.clone().expect("database reference not set");
         let (sql, params) = self.to_sql();
         match db.as_ref() {
@@ -446,8 +446,8 @@ where
         }
     }
 
-    pub async fn ToSingleAsync(self) -> Result<Option<T>> {
-        let mut list = self.Top(1).ToListAsync().await?;
+    pub async fn to_single_async(self) -> Result<Option<T>> {
+        let mut list = self.Top(1).to_list_async().await?;
         Ok(list.pop())
     }
 

@@ -54,14 +54,14 @@ where
         Query::new(T::table().name, style).with_db(self.db.clone())
     }
 
-    async fn GetByKeyAsync(&self, key: SqlParam) -> Result<Option<T>> {
+    async fn get_by_key_async(&self, key: SqlParam) -> Result<Option<T>> {
         let table = T::table();
         let pk = table
             .keys
             .first()
             .ok_or_else(|| anyhow!("no primary key metadata"))?;
         let expr = Expr::Col(format!("{}.{}", table.name, pk.column)).eq(Expr::Param(key));
-        self.Select().Where(expr).ToSingleAsync().await
+        self.Select().Where(expr).to_single_async().await
     }
 }
 
@@ -70,7 +70,7 @@ impl<T> Crud<T> for GenericRepository<T>
 where
     T: Entity + FromRowNamed + Validatable + Persistable + Send + Sync,
 {
-    async fn InsertAsync(&self, entity: &T) -> Result<()> {
+    async fn insert_async(&self, entity: &T) -> Result<()> {
         entity.validate().map_err(|e| anyhow!(e.join(", ")))?;
         let style = match self.db.as_ref().kind() {
             DbKind::Mssql => PlaceholderStyle::AtP,
@@ -80,7 +80,7 @@ where
         execute(&self.db, &sql, &params).await.map(|_| ())
     }
 
-    async fn UpdateAsync(&self, entity: &T) -> Result<()> {
+    async fn update_async(&self, entity: &T) -> Result<()> {
         entity.validate().map_err(|e| anyhow!(e.join(", ")))?;
         let style = match self.db.as_ref().kind() {
             DbKind::Mssql => PlaceholderStyle::AtP,
@@ -90,7 +90,7 @@ where
         execute(&self.db, &sql, &params).await.map(|_| ())
     }
 
-    async fn DeleteByEntityAsync(&self, entity: &T) -> Result<()> {
+    async fn delete_by_entity_async(&self, entity: &T) -> Result<()> {
         let style = match self.db.as_ref().kind() {
             DbKind::Mssql => PlaceholderStyle::AtP,
             DbKind::Postgres => PlaceholderStyle::Dollar,
@@ -99,7 +99,7 @@ where
         execute(&self.db, &sql, &params).await.map(|_| ())
     }
 
-    async fn DeleteByKeyAsync(&self, key: SqlParam) -> Result<()> {
+    async fn delete_by_key_async(&self, key: SqlParam) -> Result<()> {
         let style = match self.db.as_ref().kind() {
             DbKind::Mssql => PlaceholderStyle::AtP,
             DbKind::Postgres => PlaceholderStyle::Dollar,

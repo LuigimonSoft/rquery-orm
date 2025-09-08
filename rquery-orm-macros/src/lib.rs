@@ -402,7 +402,11 @@ pub fn entity(input: TokenStream) -> TokenStream {
                         let n = field_literal.clone();
                         quote! { errors.push(format!("{} has invalid format", #n)); }
                     };
-                    quote! { if !::regex::Regex::new(#re).unwrap().is_match(value) { #err_push } }
+                    quote! {{
+                        static RE: ::std::sync::OnceLock<::regex::Regex> = ::std::sync::OnceLock::new();
+                        let re = RE.get_or_init(|| ::regex::Regex::new(#re).unwrap());
+                        if !re.is_match(value) { #err_push }
+                    }}
                 } else { quote! {} };
                 if is_option {
                     let some_branch = if is_string {
@@ -542,4 +546,3 @@ pub fn entity(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
-

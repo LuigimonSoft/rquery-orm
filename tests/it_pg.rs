@@ -45,7 +45,7 @@ async fn it_pg_select_chain() -> anyhow::Result<()> {
         .Where(col!("Employees.CountryId").eq(val!("Mex")))
         .OrderBy("Employees.HireDate DESC")
         .Top(1)
-        .ToListAsync()
+        .to_list_async()
         .await?;
 
     assert_eq!(list.len(), 1);

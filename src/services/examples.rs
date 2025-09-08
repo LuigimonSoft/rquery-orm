@@ -27,6 +27,6 @@ where
             .repo
             .Select()
             .Where(col!("E.CountryId").eq(val!(country)));
-        q.ToListAsync().await
+        q.to_list_async().await
     }
 }

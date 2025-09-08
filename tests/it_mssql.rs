@@ -36,7 +36,7 @@ async fn it_mssql_select() -> anyhow::Result<()> {
         .Where(col!("Employees.CountryId").eq(val!("Mex")))
         .OrderBy("Employees.HireDate DESC")
         .Top(10)
-        .ToListAsync()
+        .to_list_async()
         .await?;
 
     assert_eq!(list.len(), 1);
@@ -57,17 +57,17 @@ async fn it_mssql_insert() -> anyhow::Result<()> {
             .and_hms_opt(0, 0, 0)
             .unwrap(),
     };
-    repo.InsertAsync(&new_emp).await?;
+    repo.insert_async(&new_emp).await?;
 
     let inserted = repo
         .Select()
         .Where(col!("Employees.EmployeeId").eq(val!(2)))
-        .ToSingleAsync()
+        .to_single_async()
         .await?
         .unwrap();
     assert_eq!(inserted.first_name, "Ana");
 
-    repo.DeleteByKeyAsync(SqlParam::I32(2)).await?;
+    repo.delete_by_key_async(SqlParam::I32(2)).await?;
     Ok(())
 }
 
@@ -85,23 +85,23 @@ async fn it_mssql_update() -> anyhow::Result<()> {
             .and_hms_opt(0, 0, 0)
             .unwrap(),
     };
-    repo.InsertAsync(&base).await?;
+    repo.insert_async(&base).await?;
 
     let upd = Employee {
         first_name: "Ann".into(),
         ..base
     };
-    repo.UpdateAsync(&upd).await?;
+    repo.update_async(&upd).await?;
 
     let updated = repo
         .Select()
         .Where(col!("Employees.EmployeeId").eq(val!(3)))
-        .ToSingleAsync()
+        .to_single_async()
         .await?
         .unwrap();
     assert_eq!(updated.first_name, "Ann");
 
-    repo.DeleteByKeyAsync(SqlParam::I32(3)).await?;
+    repo.delete_by_key_async(SqlParam::I32(3)).await?;
     Ok(())
 }
 
@@ -119,13 +119,13 @@ async fn it_mssql_delete() -> anyhow::Result<()> {
             .and_hms_opt(0, 0, 0)
             .unwrap(),
     };
-    repo.InsertAsync(&emp).await?;
+    repo.insert_async(&emp).await?;
 
-    repo.DeleteByKeyAsync(SqlParam::I32(4)).await?;
+    repo.delete_by_key_async(SqlParam::I32(4)).await?;
     let none = repo
         .Select()
         .Where(col!("Employees.EmployeeId").eq(val!(4)))
-        .ToListAsync()
+        .to_list_async()
         .await?;
     assert_eq!(none.len(), 0);
     Ok(())

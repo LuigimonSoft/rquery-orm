@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
         .Where(col!("Employees.CountryId").eq(val!("Mex")))
         .OrderBy("Employees.HireDate DESC")
         .Top(10)
-        .ToListAsync()
+        .to_list_async()
         .await?;
 
     println!("rows: {}", list.len());

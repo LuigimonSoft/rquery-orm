@@ -50,26 +50,26 @@ let rows = repo
     .Where(col!("Employees.CountryId").eq(val!("Mex")))
     .OrderBy("Employees.HireDate DESC")
     .Top(10)
-    .ToListAsync()
+    .to_list_async()
     .await?;
 ```
 
 ### Insert
 ```rust
 let employee = Employees { employee_id: 0, first_name: "Ann".into(), last_name: "Lee".into(), age: 30, hire_date: chrono::Utc::now().naive_utc() };
-repo.InsertAsync(&employee).await?;
+repo.insert_async(&employee).await?;
 ```
 
 ### Update
 ```rust
 let mut e = rows[0].clone();
 e.last_name = "Updated".into();
-repo.UpdateAsync(&e).await?;
+repo.update_async(&e).await?;
 ```
 
 ### Delete
 ```rust
-repo.DeleteByKeyAsync(val!(e.employee_id)).await?;
+repo.delete_by_key_async(val!(e.employee_id)).await?;
 ```
 
 ## Validations
@@ -94,7 +94,7 @@ if let Err(errors) = user.validate() {
 }
 ```
 
-When using repository methods like `InsertAsync` or `UpdateAsync`, validation runs automatically; failed validation aborts the operation.
+When using repository methods like `insert_async` or `update_async`, validation runs automatically; failed validation aborts the operation.
 
 ---
 See `examples/usage.rs` and the tests folder for additional scenarios.
