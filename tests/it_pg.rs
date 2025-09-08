@@ -42,7 +42,7 @@ async fn it_pg_select_chain() -> anyhow::Result<()> {
             "Countries C",
             col!("Employees.CountryId").eq(col!("C.CountryId")),
         )
-        .Where(col!("Employees.CountryId").eq(val!("Mex")))
+        .Where(condition!(Employees::country_id == "Mex"))
         .OrderBy("Employees.HireDate DESC")
         .Top(1)
         .to_list_async()

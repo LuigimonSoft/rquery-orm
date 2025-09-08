@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::db::DatabaseRef;
-use crate::mapping::Entity;
+use crate::mapping::{Entity, FromRowWithPrefix};
 use anyhow::Result;
 use futures::TryStreamExt;
 
@@ -252,6 +252,34 @@ macro_rules! val {
     };
 }
 
+#[macro_export]
+macro_rules! on {
+    ($lt:ident :: $lf:ident == $rt:ident :: $rf:ident) => {{
+        $crate::query::Expr::Col(format!("{}.{}", $lt::TABLE, $lt::$lf))
+            .eq($crate::query::Expr::Col(format!("{}.{}", $rt::TABLE, $rt::$rf)))
+    }};
+    ($lt:ident :: $lf:ident == $rv:expr) => {{
+        $crate::query::Expr::Col(format!("{}.{}", $lt::TABLE, $lt::$lf))
+            .eq($crate::query::Expr::Param($crate::query::ToParam::to_param($rv)))
+    }};
+}
+
+#[macro_export]
+macro_rules! condition {
+    ($l:literal == $rv:expr) => {{
+        $crate::query::Expr::Col($l.to_string())
+            .eq($crate::query::Expr::Param($crate::query::ToParam::to_param($rv)))
+    }};
+    ($lt:ident :: $lf:ident == $rt:ident :: $rf:ident) => {{
+        $crate::query::Expr::Col(format!("{}.{}", $lt::TABLE, $lt::$lf))
+            .eq($crate::query::Expr::Col(format!("{}.{}", $rt::TABLE, $rt::$rf)))
+    }};
+    ($lt:ident :: $lf:ident == $rv:expr) => {{
+        $crate::query::Expr::Col(format!("{}.{}", $lt::TABLE, $lt::$lf))
+            .eq($crate::query::Expr::Param($crate::query::ToParam::to_param($rv)))
+    }};
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JoinType {
     Inner,
@@ -267,6 +295,185 @@ impl JoinType {
             JoinType::Left => "LEFT JOIN",
             JoinType::Right => "RIGHT JOIN",
             JoinType::Full => "FULL JOIN",
+        }
+    }
+}
+
+pub struct DualQuery<T, U>
+where
+    T: Entity + FromRowWithPrefix,
+    U: Entity + FromRowWithPrefix,
+{
+    style: PlaceholderStyle,
+    db: Option<Arc<DatabaseRef>>,
+    filters: Vec<Expr>,
+    order_by: Option<String>,
+    top: Option<i64>,
+    join: Option<(JoinType, Expr)>,
+    _t: PhantomData<T>,
+    _u: PhantomData<U>,
+}
+
+impl<T, U> DualQuery<T, U>
+where
+    T: Entity + FromRowWithPrefix,
+    U: Entity + FromRowWithPrefix,
+{
+    pub fn new(style: PlaceholderStyle) -> Self {
+        Self {
+            style,
+            db: None,
+            filters: Vec::new(),
+            order_by: None,
+            top: None,
+            join: None,
+            _t: PhantomData,
+            _u: PhantomData,
+        }
+    }
+
+    pub fn with_db(mut self, db: Arc<DatabaseRef>) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn Join(mut self, join_type: JoinType, on_expr: Expr) -> Self {
+        self.join = Some((join_type, on_expr));
+        self
+    }
+
+    pub fn Where(mut self, expr: Expr) -> Self {
+        self.filters.push(expr);
+        self
+    }
+
+    pub fn OrderBy(mut self, ob: &str) -> Self {
+        self.order_by = Some(ob.to_string());
+        self
+    }
+
+    pub fn Top(mut self, n: i64) -> Self {
+        self.top = Some(n);
+        self
+    }
+
+    pub fn to_sql(&self) -> (String, Vec<SqlParam>) {
+        let mut params = Vec::new();
+        let tname = T::table().name;
+        let uname = U::table().name;
+        let mut cols = Vec::new();
+        for c in T::table().columns {
+            cols.push(format!("{}.{} AS t_{}", tname, c.name, c.name));
+        }
+        for c in U::table().columns {
+            cols.push(format!("{}.{} AS u_{}", uname, c.name, c.name));
+        }
+        let mut sql = String::new();
+        match self.style {
+            PlaceholderStyle::AtP => {
+                if let Some(n) = self.top {
+                    sql.push_str(&format!("SELECT TOP({}) {} FROM {}", n, cols.join(", "), tname));
+                } else {
+                    sql.push_str(&format!("SELECT {} FROM {}", cols.join(", "), tname));
+                }
+            }
+            PlaceholderStyle::Dollar => {
+                sql.push_str(&format!("SELECT {} FROM {}", cols.join(", "), tname));
+            }
+        }
+        if let Some((jt, on)) = &self.join {
+            sql.push(' ');
+            sql.push_str(jt.to_sql());
+            sql.push(' ');
+            sql.push_str(uname);
+            sql.push_str(" ON ");
+            sql.push_str(&on.to_sql_with(self.style, &mut params));
+        }
+        if !self.filters.is_empty() {
+            let mut it = self.filters.iter();
+            if let Some(first) = it.next() {
+                sql.push_str(" WHERE ");
+                sql.push_str(&first.to_sql_with(self.style, &mut params));
+                for f in it {
+                    sql.push_str(" AND ");
+                    sql.push_str(&f.to_sql_with(self.style, &mut params));
+                }
+            }
+        }
+        if let Some(ob) = &self.order_by {
+            sql.push_str(" ORDER BY ");
+            sql.push_str(ob);
+        }
+        if let Some(n) = self.top {
+            if self.style == PlaceholderStyle::Dollar {
+                sql.push_str(&format!(" LIMIT {}", n));
+            }
+        }
+        (sql, params)
+    }
+
+    pub async fn to_list_async(self) -> Result<Vec<(T, U)>> {
+        let db = self.db.clone().expect("database reference not set");
+        let (sql, params) = self.to_sql();
+        match db.as_ref() {
+            DatabaseRef::Mssql(conn) => {
+                let mut guard = conn.lock().await;
+                let mut boxed: Vec<Box<dyn tiberius::ToSql + Send + Sync>> = Vec::new();
+                for p in &params {
+                    let b: Box<dyn tiberius::ToSql + Send + Sync> = match p {
+                        SqlParam::I32(v) => Box::new(*v),
+                        SqlParam::I64(v) => Box::new(*v),
+                        SqlParam::Bool(v) => Box::new(*v),
+                        SqlParam::Text(v) => Box::new(v.clone()),
+                        SqlParam::Uuid(v) => Box::new(*v),
+                        SqlParam::Decimal(v) => Box::new(v.to_string()),
+                        SqlParam::DateTime(v) => Box::new(*v),
+                        SqlParam::Bytes(v) => Box::new(v.clone()),
+                        SqlParam::Null => Box::new(Option::<i32>::None),
+                    };
+                    boxed.push(b);
+                }
+                let refs: Vec<&dyn tiberius::ToSql> =
+                    boxed.iter().map(|b| &**b as &dyn tiberius::ToSql).collect();
+                let mut stream = guard.query(&sql, &refs[..]).await?;
+                let mut out = Vec::new();
+                while let Some(item) = stream.try_next().await? {
+                    if let Some(row) = item.into_row() {
+                        let left = T::from_row_ms_with(&row, "t")?;
+                        let right = U::from_row_ms_with(&row, "u")?;
+                        out.push((left, right));
+                    }
+                }
+                Ok(out)
+            }
+            DatabaseRef::Postgres(pg) => {
+                let mut boxed: Vec<Box<dyn tokio_postgres::types::ToSql + Send + Sync>> =
+                    Vec::new();
+                for p in &params {
+                    let b: Box<dyn tokio_postgres::types::ToSql + Send + Sync> = match p {
+                        SqlParam::I32(v) => Box::new(*v),
+                        SqlParam::I64(v) => Box::new(*v),
+                        SqlParam::Bool(v) => Box::new(*v),
+                        SqlParam::Text(v) => Box::new(v.clone()),
+                        SqlParam::Uuid(v) => Box::new(*v),
+                        SqlParam::Decimal(v) => Box::new(v.to_string()),
+                        SqlParam::DateTime(v) => Box::new(*v),
+                        SqlParam::Bytes(v) => Box::new(v.clone()),
+                        SqlParam::Null => Box::new(Option::<i32>::None),
+                    };
+                    boxed.push(b);
+                }
+                let refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
+                    boxed.iter().map(|b| &**b as _).collect();
+                let rows = pg.query(&sql, &refs[..]).await?;
+                let mut out = Vec::new();
+                for row in rows {
+                    let left = T::from_row_pg_with(&row, "t")?;
+                    let right = U::from_row_pg_with(&row, "u")?;
+                    out.push((left, right));
+                }
+                Ok(out)
+            }
         }
     }
 }

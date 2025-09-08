@@ -33,7 +33,7 @@ async fn it_mssql_select() -> anyhow::Result<()> {
             "Countries C",
             col!("Employees.CountryId").eq(col!("C.CountryId")),
         )
-        .Where(col!("Employees.CountryId").eq(val!("Mex")))
+        .Where(condition!(Employees::country_id == "Mex"))
         .OrderBy("Employees.HireDate DESC")
         .Top(10)
         .to_list_async()
@@ -61,7 +61,7 @@ async fn it_mssql_insert() -> anyhow::Result<()> {
 
     let inserted = repo
         .Select()
-        .Where(col!("Employees.EmployeeId").eq(val!(2)))
+        .Where(condition!(Employees::employee_id == 2))
         .to_single_async()
         .await?
         .unwrap();
@@ -95,7 +95,7 @@ async fn it_mssql_update() -> anyhow::Result<()> {
 
     let updated = repo
         .Select()
-        .Where(col!("Employees.EmployeeId").eq(val!(3)))
+        .Where(condition!(Employees::employee_id == 3))
         .to_single_async()
         .await?
         .unwrap();
@@ -124,7 +124,7 @@ async fn it_mssql_delete() -> anyhow::Result<()> {
     repo.delete_by_key_async(SqlParam::I32(4)).await?;
     let none = repo
         .Select()
-        .Where(col!("Employees.EmployeeId").eq(val!(4)))
+        .Where(condition!(Employees::employee_id == 4))
         .to_list_async()
         .await?;
     assert_eq!(none.len(), 0);

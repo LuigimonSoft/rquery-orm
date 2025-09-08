@@ -1,6 +1,6 @@
 use rquery_orm::{
-    col, val, Entity, FromRowNamed, JoinType, Persistable, PlaceholderStyle, Query, SqlParam,
-    TableMeta, Validatable,
+    col, val, Entity, FromRowNamed, FromRowWithPrefix, JoinType, Persistable, PlaceholderStyle,
+    Query, SqlParam, TableMeta, Validatable,
 };
 
 struct Dummy;
@@ -22,6 +22,15 @@ impl FromRowNamed for Dummy {
         unimplemented!()
     }
     fn from_row_pg(_row: &tokio_postgres::Row) -> anyhow::Result<Self> {
+        unimplemented!()
+    }
+}
+
+impl FromRowWithPrefix for Dummy {
+    fn from_row_ms_with(_row: &tiberius::Row, _prefix: &str) -> anyhow::Result<Self> {
+        unimplemented!()
+    }
+    fn from_row_pg_with(_row: &tokio_postgres::Row, _prefix: &str) -> anyhow::Result<Self> {
         unimplemented!()
     }
 }
@@ -66,7 +75,7 @@ fn join_and_where_build_for_pg() {
             "Countries C",
             col!("E.CountryId").eq(col!("C.CountryId")),
         )
-        .Where(col!("E.CountryId").eq(val!("Mex")))
+        .Where(condition!("E.CountryId" == "Mex"))
         .OrderBy("E.Id")
         .Top(5);
     let (sql, params) = q.to_sql();
@@ -84,7 +93,7 @@ fn full_query_chain_pg() {
             "Countries C",
             col!("Employees.CountryId").eq(col!("C.CountryId")),
         )
-        .Where(col!("Employees.CountryId").eq(val!("Mex")))
+        .Where(condition!("Employees.CountryId" == "Mex"))
         .OrderBy("Employees.HireDate DESC")
         .Top(10);
     let (sql, params) = q.to_sql();
@@ -93,4 +102,15 @@ fn full_query_chain_pg() {
         "SELECT * FROM Employees LEFT JOIN Countries C ON (Employees.CountryId = C.CountryId) WHERE (Employees.CountryId = $1) ORDER BY Employees.HireDate DESC LIMIT 10",
     );
     assert_eq!(params, vec![SqlParam::Text("Mex".into())]);
+}
+
+#[test]
+fn dual_query_builds_sql() {
+    // Build a dual query selecting from two entities using typed ON
+    let q = rquery_orm::DualQuery::<Dummy, Dummy>::new(PlaceholderStyle::Dollar)
+        .Join(JoinType::Left, col!("A").eq(col!("B")))
+        .Top(10);
+    let (sql, _params) = q.to_sql();
+    assert!(sql.contains("SELECT "));
+    assert!(sql.contains(" LEFT JOIN "));
 }
