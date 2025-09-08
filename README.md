@@ -1,6 +1,6 @@
 # rquery-orm
 
-Lightweight ORM for Rust providing a LINQ-style query builder over SQL Server and PostgreSQL. It exposes a small set of traits and a derive macro so your structs become database entities, while all SQL is generated through a typed DSL.
+Lightweight ORM for Rust providing a SQL style query builder over SQL Server and PostgreSQL. It exposes a small set of traits and a derive macro so your structs become database entities, while all SQL is generated through a typed DSL.
 
 ## Connecting to the database
 ```rust
