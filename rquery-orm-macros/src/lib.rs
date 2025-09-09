@@ -5,6 +5,11 @@ use syn::{parse_macro_input, Data, DeriveInput, Fields, Lit, Meta, NestedMeta};
 #[proc_macro_derive(Entity, attributes(table, column, key, relation))]
 pub fn entity(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    entity_impl(input).into()
+}
+
+// Core implementation extracted for testing with proc-macro2
+pub(crate) fn entity_impl(input: DeriveInput) -> proc_macro2::TokenStream {
     let struct_name = input.ident;
 
     // table attributes
@@ -166,40 +171,61 @@ pub fn entity(input: TokenStream) -> TokenStream {
                             for nested in list.nested.iter() {
                                 match nested {
                                     NestedMeta::Meta(Meta::NameValue(nv)) => {
-                                        if nv.path.is_ident("name") {
-                                            if let Lit::Str(s) = &nv.lit { col_name = s.value(); }
-                                        } else if nv.path.is_ident("max_length") {
-                                            if let Lit::Int(i) = &nv.lit { max_length = i.base10_parse().ok(); }
-                                        } else if nv.path.is_ident("min_length") {
-                                            if let Lit::Int(i) = &nv.lit { min_length = i.base10_parse().ok(); }
-                                        } else if nv.path.is_ident("regex") {
-                                            if let Lit::Str(s) = &nv.lit { regex = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_max_length") {
-                                            if let Lit::Str(s) = &nv.lit { err_max_length = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_min_length") {
-                                            if let Lit::Str(s) = &nv.lit { err_min_length = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_required") {
-                                            if let Lit::Str(s) = &nv.lit { err_required = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_allow_null") {
-                                            if let Lit::Str(s) = &nv.lit { err_allow_null = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_allow_empty") {
-                                            if let Lit::Str(s) = &nv.lit { err_allow_empty = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_regex") {
-                                            if let Lit::Str(s) = &nv.lit { err_regex = Some(s.value()); }
-                                        } else if nv.path.is_ident("allow_empty") {
-                                            if let Lit::Bool(b) = &nv.lit { allow_empty = b.value; }
-                                        } else if nv.path.is_ident("required") {
-                                            if let Lit::Bool(b) = &nv.lit { required = b.value; }
-                                        } else if nv.path.is_ident("allow_null") {
-                                            if let Lit::Bool(b) = &nv.lit { allow_null = b.value; }
-                                        } else if nv.path.is_ident("ignore_in_update") {
-                                            if let Lit::Bool(b) = &nv.lit { ignore_in_update = b.value; }
-                                        } else if nv.path.is_ident("ignore_in_insert") {
-                                            if let Lit::Bool(b) = &nv.lit { ignore_in_insert = b.value; }
-                                        } else if nv.path.is_ident("ignore_in_delete") {
-                                            if let Lit::Bool(b) = &nv.lit { ignore_in_delete = b.value; }
-                                        } else if nv.path.is_ident("ignore") {
-                                            if let Lit::Bool(b) = &nv.lit { ignore = b.value; }
+                                        if let Some(ident) = nv.path.get_ident().map(|i| i.to_string()) {
+                                            match ident.as_str() {
+                                                "name" => {
+                                                    if let Lit::Str(s) = &nv.lit { col_name = s.value(); }
+                                                }
+                                                , "max_length" => {
+                                                    if let Lit::Int(i) = &nv.lit { max_length = i.base10_parse().ok(); }
+                                                }
+                                                , "min_length" => {
+                                                    if let Lit::Int(i) = &nv.lit { min_length = i.base10_parse().ok(); }
+                                                }
+                                                , "regex" => {
+                                                    if let Lit::Str(s) = &nv.lit { regex = Some(s.value()); }
+                                                }
+                                                , "error_max_length" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_max_length = Some(s.value()); }
+                                                }
+                                                , "error_min_length" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_min_length = Some(s.value()); }
+                                                }
+                                                , "error_required" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_required = Some(s.value()); }
+                                                }
+                                                , "error_allow_null" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_allow_null = Some(s.value()); }
+                                                }
+                                                , "error_allow_empty" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_allow_empty = Some(s.value()); }
+                                                }
+                                                , "error_regex" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_regex = Some(s.value()); }
+                                                }
+                                                , "allow_empty" => {
+                                                    if let Lit::Bool(b) = &nv.lit { allow_empty = b.value; }
+                                                }
+                                                , "required" => {
+                                                    if let Lit::Bool(b) = &nv.lit { required = b.value; }
+                                                }
+                                                , "allow_null" => {
+                                                    if let Lit::Bool(b) = &nv.lit { allow_null = b.value; }
+                                                }
+                                                , "ignore_in_update" => {
+                                                    if let Lit::Bool(b) = &nv.lit { ignore_in_update = b.value; }
+                                                }
+                                                , "ignore_in_insert" => {
+                                                    if let Lit::Bool(b) = &nv.lit { ignore_in_insert = b.value; }
+                                                }
+                                                , "ignore_in_delete" => {
+                                                    if let Lit::Bool(b) = &nv.lit { ignore_in_delete = b.value; }
+                                                }
+                                                , "ignore" => {
+                                                    if let Lit::Bool(b) = &nv.lit { ignore = b.value; }
+                                                }
+                                                , _ => {}
+                                            }
                                         }
                                     }
                                     NestedMeta::Meta(Meta::Path(p)) => {
@@ -578,5 +604,8 @@ pub fn entity(input: TokenStream) -> TokenStream {
         #(#key_trait_impls)*
     };
 
-    TokenStream::from(expanded)
+    expanded
 }
+
+#[cfg(test)]
+mod tests;
