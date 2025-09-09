@@ -32,7 +32,7 @@ native-tls = "0.2"
 postgres-native-tls = "0.5"
 
 # Procedural macros para #[derive(Entity)]
-rquery-orm-macros = { version = "0.1.0", path = "./rquery-orm-macros" }
+rquery-orm-macros = { version = "1.0.0", path = "./rquery-orm-macros" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
