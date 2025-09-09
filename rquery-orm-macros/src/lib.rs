@@ -5,6 +5,11 @@ use syn::{parse_macro_input, Data, DeriveInput, Fields, Lit, Meta, NestedMeta};
 #[proc_macro_derive(Entity, attributes(table, column, key, relation))]
 pub fn entity(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    entity_impl(input).into()
+}
+
+// Core implementation extracted for testing with proc-macro2
+pub(crate) fn entity_impl(input: DeriveInput) -> proc_macro2::TokenStream {
     let struct_name = input.ident;
 
     // table attributes
@@ -599,103 +604,7 @@ pub fn entity(input: TokenStream) -> TokenStream {
         #(#key_trait_impls)*
     };
 
-    TokenStream::from(expanded)
-}
-
-// Test-only shims to satisfy paths used in the macro expansion
-#[cfg(test)]
-mod anyhow { pub type Result<T> = std::result::Result<T, ()>; }
-#[cfg(test)]
-mod regex { pub struct Regex; impl Regex { pub fn new(_: &str) -> Result<Self, ()> { Ok(Regex) } pub fn is_match(&self, _: &str) -> bool { true } } }
-#[cfg(test)]
-mod uuid { #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)] pub struct Uuid; }
-#[cfg(test)]
-mod tiberius {
-    pub struct Row;
-    impl Row { pub fn try_get<T, K>(&self, _k: K) -> Result<Option<T>, ()> { Ok(None) } }
-}
-#[cfg(test)]
-mod tokio_postgres {
-    pub struct Row;
-    impl Row {
-        pub fn try_get<T, K>(&self, _k: K) -> crate::anyhow::Result<T>
-        where T: Default { Ok(T::default()) }
-    }
-}
-#[cfg(test)]
-pub mod rquery_orm {
-    pub mod mapping {
-        use crate::{tiberius, tokio_postgres, uuid, anyhow};
-        pub struct ColumnMeta {
-            pub name: &'static str,
-            pub required: bool,
-            pub allow_null: bool,
-            pub max_length: Option<usize>,
-            pub min_length: Option<usize>,
-            pub allow_empty: bool,
-            pub regex: Option<&'static str>,
-            pub error_max_length: Option<&'static str>,
-            pub error_min_length: Option<&'static str>,
-            pub error_required: Option<&'static str>,
-            pub error_allow_null: Option<&'static str>,
-            pub error_allow_empty: Option<&'static str>,
-            pub error_regex: Option<&'static str>,
-            pub ignore: bool,
-            pub ignore_in_update: bool,
-            pub ignore_in_insert: bool,
-            pub ignore_in_delete: bool,
-        }
-        pub struct KeyMeta {
-            pub column: &'static str,
-            pub is_identity: bool,
-            pub ignore_in_update: bool,
-            pub ignore_in_insert: bool,
-        }
-        pub struct RelationMeta {
-            pub name: &'static str,
-            pub foreign_key: &'static str,
-            pub table: &'static str,
-            pub table_number: Option<u32>,
-            pub ignore_in_update: bool,
-            pub ignore_in_insert: bool,
-        }
-        pub struct TableMeta {
-            pub name: &'static str,
-            pub schema: Option<&'static str>,
-            pub columns: &'static [ColumnMeta],
-            pub keys: &'static [KeyMeta],
-            pub relations: &'static [RelationMeta],
-        }
-        pub trait Entity { fn table() -> &'static TableMeta; }
-        pub trait FromRowNamed: Sized {
-            fn from_row_ms(_row: &tiberius::Row) -> anyhow::Result<Self>;
-            fn from_row_pg(_row: &tokio_postgres::Row) -> anyhow::Result<Self>;
-        }
-        pub trait FromRowWithPrefix: Sized {
-            fn from_row_ms_with(_row: &tiberius::Row, _prefix: &str) -> anyhow::Result<Self>;
-            fn from_row_pg_with(_row: &tokio_postgres::Row, _prefix: &str) -> anyhow::Result<Self>;
-        }
-        pub trait Validatable { fn validate(&self) -> Result<(), Vec<String>>; }
-        pub trait Persistable {
-            fn build_insert(&self, style: crate::rquery_orm::query::PlaceholderStyle) -> (String, Vec<crate::rquery_orm::query::SqlParam>, bool);
-            fn build_update(&self, style: crate::rquery_orm::query::PlaceholderStyle) -> (String, Vec<crate::rquery_orm::query::SqlParam>);
-            fn build_delete(&self, style: crate::rquery_orm::query::PlaceholderStyle) -> (String, Vec<crate::rquery_orm::query::SqlParam>);
-            fn build_delete_by_key(key: crate::rquery_orm::query::SqlParam, style: crate::rquery_orm::query::PlaceholderStyle) -> (String, Vec<crate::rquery_orm::query::SqlParam>);
-        }
-        pub trait KeyAsInt { fn key(&self) -> i32; }
-        pub trait KeyAsGuid { fn key(&self) -> uuid::Uuid; }
-        pub trait KeyAsString { fn key(&self) -> String; }
-    }
-    pub mod query {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-        pub enum PlaceholderStyle { AtP, Dollar }
-        #[derive(Clone, Debug, PartialEq)]
-        pub enum SqlParam { Int(i64), Null }
-        pub trait ToParam { fn to_param(self) -> SqlParam; }
-        impl ToParam for i32 { fn to_param(self) -> SqlParam { SqlParam::Int(self as i64) } }
-        impl ToParam for &i32 { fn to_param(self) -> SqlParam { SqlParam::Int(*self as i64) } }
-        impl ToParam for Option<i32> { fn to_param(self) -> SqlParam { match self { Some(v) => SqlParam::Int(v as i64), None => SqlParam::Null } } }
-    }
+    expanded
 }
 
 #[cfg(test)]
