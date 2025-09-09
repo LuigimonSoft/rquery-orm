@@ -2,6 +2,14 @@
 name = "rquery-orm-macros"
 version = "0.1.0"
 edition = "2021"
+authors = ["Luis Carlos Carrillo"]
+description = "Procedural macros for rquery-orm."
+license = "MIT"
+repository = "https://github.com/luigimonsoft/rquery-orm/rquery-orm-macros"
+documentation = "https://docs.rs/rquery-orm/rquery-orm-macros"
+readme = "README.md"
+keywords = ["orm", "sql", "rust", "query", "database"]
+categories = ["database", "asynchronous"]
 
 [lib]
 proc-macro = true
