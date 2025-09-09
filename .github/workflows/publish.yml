@@ -21,6 +21,13 @@ jobs:
           cargo set-version "$version"
           cd rquery-orm-macros
           cargo set-version "$version"
+      - name: publish rquery-orm-macros
+        run: |
+          cd rquery-orm-macros
+          cargo publish --dry-run --allow-dirty
+          cargo publish --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Validate package before publishing
         run: cargo publish --dry-run --allow-dirty
       - run: cargo publish --allow-dirty
