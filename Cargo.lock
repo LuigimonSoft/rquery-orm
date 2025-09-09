@@ -1246,7 +1246,9 @@ dependencies = [
 
 [[package]]
 name = "rquery-orm-macros"
-version = "0.1.0"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35fa352f2bebc092e6d0ba10acb560d442ac30c53101b64f65308000e4758310"
 dependencies = [
  "proc-macro2",
  "quote",

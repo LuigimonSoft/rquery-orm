@@ -166,40 +166,61 @@ pub fn entity(input: TokenStream) -> TokenStream {
                             for nested in list.nested.iter() {
                                 match nested {
                                     NestedMeta::Meta(Meta::NameValue(nv)) => {
-                                        if nv.path.is_ident("name") {
-                                            if let Lit::Str(s) = &nv.lit { col_name = s.value(); }
-                                        } else if nv.path.is_ident("max_length") {
-                                            if let Lit::Int(i) = &nv.lit { max_length = i.base10_parse().ok(); }
-                                        } else if nv.path.is_ident("min_length") {
-                                            if let Lit::Int(i) = &nv.lit { min_length = i.base10_parse().ok(); }
-                                        } else if nv.path.is_ident("regex") {
-                                            if let Lit::Str(s) = &nv.lit { regex = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_max_length") {
-                                            if let Lit::Str(s) = &nv.lit { err_max_length = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_min_length") {
-                                            if let Lit::Str(s) = &nv.lit { err_min_length = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_required") {
-                                            if let Lit::Str(s) = &nv.lit { err_required = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_allow_null") {
-                                            if let Lit::Str(s) = &nv.lit { err_allow_null = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_allow_empty") {
-                                            if let Lit::Str(s) = &nv.lit { err_allow_empty = Some(s.value()); }
-                                        } else if nv.path.is_ident("error_regex") {
-                                            if let Lit::Str(s) = &nv.lit { err_regex = Some(s.value()); }
-                                        } else if nv.path.is_ident("allow_empty") {
-                                            if let Lit::Bool(b) = &nv.lit { allow_empty = b.value; }
-                                        } else if nv.path.is_ident("required") {
-                                            if let Lit::Bool(b) = &nv.lit { required = b.value; }
-                                        } else if nv.path.is_ident("allow_null") {
-                                            if let Lit::Bool(b) = &nv.lit { allow_null = b.value; }
-                                        } else if nv.path.is_ident("ignore_in_update") {
-                                            if let Lit::Bool(b) = &nv.lit { ignore_in_update = b.value; }
-                                        } else if nv.path.is_ident("ignore_in_insert") {
-                                            if let Lit::Bool(b) = &nv.lit { ignore_in_insert = b.value; }
-                                        } else if nv.path.is_ident("ignore_in_delete") {
-                                            if let Lit::Bool(b) = &nv.lit { ignore_in_delete = b.value; }
-                                        } else if nv.path.is_ident("ignore") {
-                                            if let Lit::Bool(b) = &nv.lit { ignore = b.value; }
+                                        if let Some(ident) = nv.path.get_ident().map(|i| i.to_string()) {
+                                            match ident.as_str() {
+                                                "name" => {
+                                                    if let Lit::Str(s) = &nv.lit { col_name = s.value(); }
+                                                }
+                                                , "max_length" => {
+                                                    if let Lit::Int(i) = &nv.lit { max_length = i.base10_parse().ok(); }
+                                                }
+                                                , "min_length" => {
+                                                    if let Lit::Int(i) = &nv.lit { min_length = i.base10_parse().ok(); }
+                                                }
+                                                , "regex" => {
+                                                    if let Lit::Str(s) = &nv.lit { regex = Some(s.value()); }
+                                                }
+                                                , "error_max_length" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_max_length = Some(s.value()); }
+                                                }
+                                                , "error_min_length" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_min_length = Some(s.value()); }
+                                                }
+                                                , "error_required" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_required = Some(s.value()); }
+                                                }
+                                                , "error_allow_null" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_allow_null = Some(s.value()); }
+                                                }
+                                                , "error_allow_empty" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_allow_empty = Some(s.value()); }
+                                                }
+                                                , "error_regex" => {
+                                                    if let Lit::Str(s) = &nv.lit { err_regex = Some(s.value()); }
+                                                }
+                                                , "allow_empty" => {
+                                                    if let Lit::Bool(b) = &nv.lit { allow_empty = b.value; }
+                                                }
+                                                , "required" => {
+                                                    if let Lit::Bool(b) = &nv.lit { required = b.value; }
+                                                }
+                                                , "allow_null" => {
+                                                    if let Lit::Bool(b) = &nv.lit { allow_null = b.value; }
+                                                }
+                                                , "ignore_in_update" => {
+                                                    if let Lit::Bool(b) = &nv.lit { ignore_in_update = b.value; }
+                                                }
+                                                , "ignore_in_insert" => {
+                                                    if let Lit::Bool(b) = &nv.lit { ignore_in_insert = b.value; }
+                                                }
+                                                , "ignore_in_delete" => {
+                                                    if let Lit::Bool(b) = &nv.lit { ignore_in_delete = b.value; }
+                                                }
+                                                , "ignore" => {
+                                                    if let Lit::Bool(b) = &nv.lit { ignore = b.value; }
+                                                }
+                                                , _ => {}
+                                            }
                                         }
                                     }
                                     NestedMeta::Meta(Meta::Path(p)) => {
@@ -580,3 +601,102 @@ pub fn entity(input: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
+
+// Test-only shims to satisfy paths used in the macro expansion
+#[cfg(test)]
+mod anyhow { pub type Result<T> = std::result::Result<T, ()>; }
+#[cfg(test)]
+mod regex { pub struct Regex; impl Regex { pub fn new(_: &str) -> Result<Self, ()> { Ok(Regex) } pub fn is_match(&self, _: &str) -> bool { true } } }
+#[cfg(test)]
+mod uuid { #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)] pub struct Uuid; }
+#[cfg(test)]
+mod tiberius {
+    pub struct Row;
+    impl Row { pub fn try_get<T, K>(&self, _k: K) -> Result<Option<T>, ()> { Ok(None) } }
+}
+#[cfg(test)]
+mod tokio_postgres {
+    pub struct Row;
+    impl Row {
+        pub fn try_get<T, K>(&self, _k: K) -> crate::anyhow::Result<T>
+        where T: Default { Ok(T::default()) }
+    }
+}
+#[cfg(test)]
+pub mod rquery_orm {
+    pub mod mapping {
+        use crate::{tiberius, tokio_postgres, uuid, anyhow};
+        pub struct ColumnMeta {
+            pub name: &'static str,
+            pub required: bool,
+            pub allow_null: bool,
+            pub max_length: Option<usize>,
+            pub min_length: Option<usize>,
+            pub allow_empty: bool,
+            pub regex: Option<&'static str>,
+            pub error_max_length: Option<&'static str>,
+            pub error_min_length: Option<&'static str>,
+            pub error_required: Option<&'static str>,
+            pub error_allow_null: Option<&'static str>,
+            pub error_allow_empty: Option<&'static str>,
+            pub error_regex: Option<&'static str>,
+            pub ignore: bool,
+            pub ignore_in_update: bool,
+            pub ignore_in_insert: bool,
+            pub ignore_in_delete: bool,
+        }
+        pub struct KeyMeta {
+            pub column: &'static str,
+            pub is_identity: bool,
+            pub ignore_in_update: bool,
+            pub ignore_in_insert: bool,
+        }
+        pub struct RelationMeta {
+            pub name: &'static str,
+            pub foreign_key: &'static str,
+            pub table: &'static str,
+            pub table_number: Option<u32>,
+            pub ignore_in_update: bool,
+            pub ignore_in_insert: bool,
+        }
+        pub struct TableMeta {
+            pub name: &'static str,
+            pub schema: Option<&'static str>,
+            pub columns: &'static [ColumnMeta],
+            pub keys: &'static [KeyMeta],
+            pub relations: &'static [RelationMeta],
+        }
+        pub trait Entity { fn table() -> &'static TableMeta; }
+        pub trait FromRowNamed: Sized {
+            fn from_row_ms(_row: &tiberius::Row) -> anyhow::Result<Self>;
+            fn from_row_pg(_row: &tokio_postgres::Row) -> anyhow::Result<Self>;
+        }
+        pub trait FromRowWithPrefix: Sized {
+            fn from_row_ms_with(_row: &tiberius::Row, _prefix: &str) -> anyhow::Result<Self>;
+            fn from_row_pg_with(_row: &tokio_postgres::Row, _prefix: &str) -> anyhow::Result<Self>;
+        }
+        pub trait Validatable { fn validate(&self) -> Result<(), Vec<String>>; }
+        pub trait Persistable {
+            fn build_insert(&self, style: crate::rquery_orm::query::PlaceholderStyle) -> (String, Vec<crate::rquery_orm::query::SqlParam>, bool);
+            fn build_update(&self, style: crate::rquery_orm::query::PlaceholderStyle) -> (String, Vec<crate::rquery_orm::query::SqlParam>);
+            fn build_delete(&self, style: crate::rquery_orm::query::PlaceholderStyle) -> (String, Vec<crate::rquery_orm::query::SqlParam>);
+            fn build_delete_by_key(key: crate::rquery_orm::query::SqlParam, style: crate::rquery_orm::query::PlaceholderStyle) -> (String, Vec<crate::rquery_orm::query::SqlParam>);
+        }
+        pub trait KeyAsInt { fn key(&self) -> i32; }
+        pub trait KeyAsGuid { fn key(&self) -> uuid::Uuid; }
+        pub trait KeyAsString { fn key(&self) -> String; }
+    }
+    pub mod query {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub enum PlaceholderStyle { AtP, Dollar }
+        #[derive(Clone, Debug, PartialEq)]
+        pub enum SqlParam { Int(i64), Null }
+        pub trait ToParam { fn to_param(self) -> SqlParam; }
+        impl ToParam for i32 { fn to_param(self) -> SqlParam { SqlParam::Int(self as i64) } }
+        impl ToParam for &i32 { fn to_param(self) -> SqlParam { SqlParam::Int(*self as i64) } }
+        impl ToParam for Option<i32> { fn to_param(self) -> SqlParam { match self { Some(v) => SqlParam::Int(v as i64), None => SqlParam::Null } } }
+    }
+}
+
+#[cfg(test)]
+mod tests;
